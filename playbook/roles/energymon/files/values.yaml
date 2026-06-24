@@ -11,82 +11,73 @@ grafana:
       domain: localhost
       #This string will be substituted by the energymon role (look at prometheus-grafana.yaml) with the proper IP
       root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana"
-      serve_from_sub_path: false
+      serve_from_sub_path: true
+
+  ## Override the auto-provisioned Prometheus/Alertmanager datasource URLs so
+  ## they include the /prometheus route prefix set below (prometheusSpec.routePrefix).
+  ## Without this, Grafana queries the bare service root, which 404s.
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
+
+  additionalDataSources:
+    - name: "Prometheus"
+      type: prometheus
+      uid: prometheus
+      url: http://prometheus-kube-prometheus-prometheus.monitoring:9090/prometheus/
+      access: proxy
+      isDefault: true
+      jsonData:
+        httpMethod: POST
+        timeInterval: 30s
+    - name: "Alertmanager"
+      type: alertmanager
+      uid: alertmanager
+      url: http://prometheus-kube-prometheus-alertmanager.monitoring:9093/
+      access: proxy
+      jsonData:
+        handleGrafanaManagedAlerts: false
+        implementation: prometheus
 
   ingress:
     enabled: true
     ingressClassName: nginx
     annotations:
-      nginx.ingress.kubernetes.io/rewrite-target: /$2
       # Redirect /grafana to /grafana/
       nginx.ingress.kubernetes.io/configuration-snippet: |
         rewrite ^(/grafana)$ $1/ redirect;
-      # cert-manager.io/issuer: app-clusterissuer
     labels: {}
 
+    # Empty hosts array acts as a wildcard catch-all
     hosts: []
-    # hosts:
-    #   - my.example.com
 
-    ## Path for grafana ingress, needs grafana.ini above since sub_path
-    ##
-    path: /grafana(/|$)(.*)
+    ## Path for grafana ingress
+    path: /grafana
+    pathType: Prefix
 
-    ## TLS configuration for grafana Ingress
-    ## Secret must be manually created in the namespace
-    ##
-    ## dummy-load-certificates ingress takes care of this in our case
-    ##
     tls: []
-    # tls:
-    #   - secretName: app-certificate-secret
-    #     hosts:
-    #       - my.example.com
 
 prometheus:
   ingress:
     enabled: true
     ingressClassName: nginx
     annotations:
-      nginx.ingress.kubernetes.io/rewrite-target: /$2
       nginx.ingress.kubernetes.io/configuration-snippet: |
         rewrite ^(/prometheus)$ $1/ redirect;
 
+    # Empty hosts array acts as a wildcard catch-all
     hosts: []
-    # hosts:
-    #   - my.example.com
 
-    ## Paths to use for ingress rules - one path should match the prometheusSpec.routePrefix
-    ##
     paths:
-      - /prometheus(/|$)(.*)
+      - /prometheus
+    pathType: Prefix
 
-    ## For Kubernetes >= 1.18 you should specify the pathType (determines how Ingress paths should be matched)
-    ## See https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/#better-path-matching-with-path-types
-    # pathType: ImplementationSpecific
-
-    ## TLS configuration for Prometheus Ingress
-    ## Secret must be manually created in the namespace
-    ##
     tls: []
-    # tls:
-    #   - secretName: app-certificate-secret
-    #     hosts:
-    #       - my.example.com
 
-  ## Settings affecting prometheusSpec
-  ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#prometheusspec
-  ##
   prometheusSpec:
-    ## External URL at which Prometheus will be reachable.
-    ##
-    externalUrl: "/prometheus"
-    ## Prefix used to register routes, overriding externalUrl route.
-    ## Useful for proxies that rewrite URLs.
-    ##
-    routePrefix: "/prometheus"
-    ## Port on which Prometheus is listening
-    ##
+    externalUrl: "/prometheus/"
+    routePrefix: "/prometheus/"
+    
     listenLocal: false
     portName: http-web
     containers:
@@ -97,6 +88,3 @@ prometheus:
     service:
       port: 9090
       targetPort: 9090
-    # Ensure Prometheus is configured for the path
-    web:
-      path: "/prometheus"

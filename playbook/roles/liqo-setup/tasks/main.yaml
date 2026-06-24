@@ -1,10 +1,22 @@
+- name: Get latest Liqo version from GitHub
+  uri:
+    url: https://api.github.com/repos/liqotech/liqo/releases/latest
+    return_content: yes
+    headers:
+      Accept: application/vnd.github.v3+json
+  register: liqo_latest_release
+
+- name: Set liqo_version to latest
+  set_fact:
+    liqo_version: "{{ liqo_latest_release.json.tag_name }}"
+
 - name: Check if liqoctl is already installed
-  shell: liqoctl -v
+  shell: liqoctl version --client
   register: liqoctl_already_installed
   ignore_errors: true
 
 - name: Download and extract liqoctl
-  shell: 'curl --fail -LS "https://github.com/liqotech/liqo/releases/download/v1.0.0/liqoctl-linux-amd64.tar.gz"| tar -xz'   
+  shell: 'curl --fail -LS "https://github.com/liqotech/liqo/releases/download/{{ liqo_version }}/liqoctl-linux-amd64.tar.gz" | tar -xz'
   when: liqoctl_already_installed != 0
 
 - name: Install liqoctl
@@ -12,7 +24,7 @@
   when: liqoctl_already_installed != 0
 
 - name: Check if liqo is already installed
-  shell: liqoctl version
+  shell: liqoctl version --client
   register: liqo_already_installed
   ignore_errors: true
 
@@ -20,12 +32,12 @@
   shell: |
     sudo rm -rf /tmp/.helmrepo
     sudo rm -f /tmp/.helmrepo
-  when: liqo_already_installed.rc != 0
+  when: liqo_already_installed != 0
 
-- name: Install Liqo       
+- name: Install Liqo
   shell: 'liqoctl install k3s --kubeconfig=/etc/rancher/k3s/k3s.yaml --enable-metrics --set controllerManager.metrics.serviceMonitor.enabled=true --set metrics.prometheusOperator.enabled=true'
   become: yes
-  when: liqo_already_installed.rc != 0
+  when: liqo_already_installed != 0
 
 - name: Delete prometheus pod to apply changes
   command: kubectl delete pods -n monitoring prometheus-prometheus-kube-prometheus-prometheus-0

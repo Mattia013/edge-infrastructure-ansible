@@ -21,7 +21,7 @@ spec:
         paths:
           # Match the root path exactly
           - path: /()(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: defaultpage-service
@@ -29,7 +29,7 @@ spec:
                   number: 8000
           # Keep the /default path for backward compatibility
           - path: /default(/|$)(.*)
-            pathType: Prefix
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: defaultpage-service
