@@ -17,7 +17,8 @@
     helm install my-release /tmp/liqo-dashboard/deployments/liqo-dashboard \
       --kubeconfig /etc/rancher/k3s/k3s.yaml \
       --set ingress.enabled=true \
-      --set ingress.ingressClassName=nginx
+      --set ingress.ingressClassName=nginx \
+      --set backend.args="{--port=8080}"
 
 - name: Get ingress nginx controller IP and add to /etc/hosts
   ansible.builtin.shell: |
