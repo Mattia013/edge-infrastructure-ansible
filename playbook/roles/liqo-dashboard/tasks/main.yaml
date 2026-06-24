@@ -12,13 +12,18 @@
     version: 'main'
     force: yes
 
+- name: Remove unsupported --liqo-namespace arg from backend deployment template
+  ansible.builtin.replace:
+    path: '/tmp/liqo-dashboard/deployments/liqo-dashboard/templates/backend-deployment.yaml'
+    regexp: '.*--liqo-namespace.*\n'
+    replace: ''
+
 - name: Install Liqo Dashboard with Helm
   ansible.builtin.shell: |
     helm install my-release /tmp/liqo-dashboard/deployments/liqo-dashboard \
       --kubeconfig /etc/rancher/k3s/k3s.yaml \
       --set ingress.enabled=true \
-      --set ingress.ingressClassName=nginx \
-      --set backend.args="{--port=8080}"
+      --set ingress.ingressClassName=nginx
 
 - name: Get ingress nginx controller IP and add to /etc/hosts
   ansible.builtin.shell: |
