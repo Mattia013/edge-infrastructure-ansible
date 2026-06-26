@@ -35,7 +35,7 @@
   when: liqo_already_installed != 0
 
 - name: Install Liqo
-  shell: 'liqotech install k3s --kubeconfig=/etc/rancher/k3s/k3s.yaml --enable-metrics --set controllerManager.metrics.serviceMonitor.enabled=true --set metrics.prometheusOperator.enabled=true'
+  shell: 'liqoctl install k3s --kubeconfig=/etc/rancher/k3s/k3s.yaml --enable-metrics --set controllerManager.metrics.serviceMonitor.enabled=true --set metrics.prometheusOperator.enabled=true'
   become: yes
   when: liqo_already_installed != 0
 
