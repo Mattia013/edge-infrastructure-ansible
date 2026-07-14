@@ -16,7 +16,7 @@ spec:
   - http:
       paths:
       - path: /k3sdashboard(/|$)(.*)
-        pathType: Prefix
+        pathType: ImplementationSpecific
         backend:
           service:
             name: kubernetes-dashboard

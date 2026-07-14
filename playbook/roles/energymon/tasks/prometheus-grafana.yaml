@@ -20,17 +20,14 @@
 
 - name: Install helm prometheus-community repo
   shell: helm --kubeconfig /etc/rancher/k3s/k3s.yaml repo add prometheus-community https://prometheus-community.github.io/helm-charts
-  when: helm_prometheus_exists_result.rc != 0
 
 - name: Update helm prometheus-community repo
   shell: helm --kubeconfig /etc/rancher/k3s/k3s.yaml repo update
-  when: helm_prometheus_exists_result.rc != 0
 
 - name: Copy grafana helm values yaml
   ansible.builtin.copy:
     src: values.yaml
     dest: "./values.yaml"
-  when: helm_prometheus_exists_result.rc != 0
 
 - name: Waiting for ingress controller startup
   shell: kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=60s
@@ -38,11 +35,9 @@
   retries: 3
   delay: 10
   until: wait_result.rc == 0
-  when: helm_prometheus_exists_result.rc != 0
 
 - name: Helm {{ helm.prometheus_release_name }} release 
-  shell: helm --kubeconfig /etc/rancher/k3s/k3s.yaml install -f values.yaml {{ helm.prometheus_release_name }} prometheus-community/kube-prometheus-stack -n monitoring
-  when: helm_prometheus_exists_result.rc != 0
+  shell: helm --kubeconfig /etc/rancher/k3s/k3s.yaml upgrade --install -f values.yaml {{ helm.prometheus_release_name }} prometheus-community/kube-prometheus-stack -n monitoring
 
 - name: Clean helm file
   file: 
@@ -53,7 +48,7 @@
   command: >
     kubectl patch prometheus prometheus-kube-prometheus-prometheus -n monitoring --type=json
     -p '[{"op": "replace", "path": "/spec/podMonitorSelector", "value": {}}, {"op": "replace", "path": "/spec/serviceMonitorSelector", "value": {}}]'
-  when: helm_prometheus_exists_result.rc != 0
+  ignore_errors: true
 
 # Configure Prometheus ingress always (both for new and existing installations)
 - name: Check if Prometheus monitoring namespace exists

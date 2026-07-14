@@ -1,8 +1,43 @@
-- name: Install helm 
-  shell: | 
-      curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
-      sudo apt-get install apt-transport-https --yes
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-      sudo apt-get update
-      sudo apt-get install helm
-      
+- name: Check if Helm is already installed
+  shell: helm version --short
+  register: helm_already_installed
+  ignore_errors: true
+
+- name: Install Helm dependencies
+  apt:
+    name:
+      - curl
+      - gpg
+      - apt-transport-https
+    state: present
+  when: helm_already_installed.rc != 0
+
+- name: Download Helm GPG key
+  shell: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey > /tmp/helm.gpg
+  when: helm_already_installed.rc != 0
+
+- name: Verify Helm GPG key ID
+  shell: |
+    EXPECTED="DDF78C3E6EBB2D2CC223C95C62BA89D07698DBC6"
+    ACTUAL=$(gpg --show-keys --with-colons /tmp/helm.gpg | awk -F: '$1 == "fpr" {print $10}' | head -n 1)
+    if [ "$ACTUAL" != "$EXPECTED" ]; then
+      echo "ERROR: Unexpected Helm APT key ID"
+      exit 1
+    fi
+  when: helm_already_installed.rc != 0
+
+- name: Add Helm GPG key to keyring
+  shell: cat /tmp/helm.gpg | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+  when: helm_already_installed.rc != 0
+
+- name: Add Helm apt repository
+  shell: echo "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+  when: helm_already_installed.rc != 0
+
+- name: Install Helm
+  apt:
+    name: helm
+    state: present
+    update_cache: yes
+  when: helm_already_installed.rc != 0
+

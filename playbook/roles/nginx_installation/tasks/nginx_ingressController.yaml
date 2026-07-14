@@ -1,10 +1,22 @@
----
+- name: Fetch the latest release tag from GitHub API
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/kubernetes/ingress-nginx/releases/latest
+    return_content: true
+    status_code: 200
+    body_format: json
+  register: github_release
 
 - name: Installation of nginx Ingress Controller
-  ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/baremetal/deploy.yaml
+  ansible.builtin.command: "kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/{{ github_release.json.tag_name }}/deploy/static/provider/baremetal/deploy.yaml"
 
+- name: Globally allow snippet annotations in Nginx Ingress Controller
+  ansible.builtin.command: |
+    kubectl patch configmap ingress-nginx-controller \
+      -n ingress-nginx \
+      --type merge \
+      -p '{"data":{"allow-snippet-annotations":"true","annotations-risk-level":"Critical"}}'
 - name: Configure the nginx Ingress Controller as the default one
-  ansible.builtin.command: kubectl annotate ingressclass nginx ingressclass.kubernetes.io/is-default-class=true
+  ansible.builtin.command: kubectl annotate ingressclass nginx ingressclass.kubernetes.io/is-default-class=true --overwrite
   
 - name: Copy LoadBalancer Configuration File in home directory
   ansible.builtin.template:
@@ -15,6 +27,6 @@
   ansible.builtin.command: kubectl apply -f loadbalancer.yaml
 
 - name: Clean LoadBalancer Configuration File
-  file:
+  ansible.builtin.file:
     path: loadbalancer.yaml
     state: absent
